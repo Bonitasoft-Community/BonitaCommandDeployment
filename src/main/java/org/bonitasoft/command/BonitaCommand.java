@@ -96,8 +96,8 @@ public abstract class BonitaCommand extends TenantCommand {
      * tenant Id
      */
     public long tenantId;
-    
-   
+    public void setTenantId( Long tenantId) {
+      this.tenantId = tenantId ==null ? 1 : tenantId.longValue();}
   }
   
   
@@ -175,7 +175,7 @@ public abstract class BonitaCommand extends TenantCommand {
           
           executeParameters.parameters = parameters;
           executeParameters.verb = (String) parameters.get(cstVerb);
-          executeParameters.tenantId = (Long) parameters.get(cstTenantId);
+          executeParameters.setTenantId( (Long) parameters.get(cstTenantId));
           executeParameters.parametersCommand = (Map<String,Serializable>) parameters.get(BonitaCommand.cstParametersCommand);
             
             logger.info(logHeader + "BonitaCommand Verb[" + (executeParameters.verb==null ? null : executeParameters.verb.toString()) + "] Tenant[" + executeParameters.tenantId + "]");
