@@ -28,7 +28,7 @@ import org.bonitasoft.log.event.BEventFactory;
 
 public class BonitaCommandDeployment {
 
-  public static String BonitaCommandDeploymentJarName = "bonita-commanddeployment-1.0.0.jar";
+  public static String BonitaCommandDeploymentJarName = "bonita-commanddeployment-1.2.jar";
 
   static Logger logger = Logger.getLogger(BonitaCommandDeployment.class.getName());
 

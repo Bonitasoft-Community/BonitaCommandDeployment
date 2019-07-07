@@ -88,10 +88,48 @@ public abstract class BonitaCommand extends TenantCommand {
      */
     public String verb;
     public Map<String, Serializable> parametersCommand;
+    /** to avoid the cast, return as String parameters. If the parameter is not a String, return null */
+    public String getParametersString( String name )
+    {
+      if (parametersCommand.get(name) == null)
+        return null;
+      if (parametersCommand.get( name ) instanceof String)
+        return (String) parametersCommand.get( name );
+      return null;
+    }
+    /** to avoid the cast, return as Long parameters. If the parameter is not a Long, return null */
+    public Long getParametersLong( String name )
+    {
+      if (parametersCommand.get(name) == null)
+        return null;
+      if (parametersCommand.get( name ) instanceof Long)
+        return (Long) parametersCommand.get( name );
+      return null;
+    }
+    /** to avoid the cast, return as String parameters. If the parameter is not a String, return null */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getParametersMap( String name )
+    {
+      if (parametersCommand.get(name) == null)
+        return null;
+      if (parametersCommand.get( name ) instanceof  Map<?,?> )
+        return ( Map<String, Object> ) parametersCommand.get( name );
+      return null;
+    }
+    public Boolean getParametersBoolean( String name )
+    {
+      if (parametersCommand.get(name) == null)
+        return null;
+      if (parametersCommand.get( name ) instanceof Boolean)
+        return (Boolean) parametersCommand.get( name );
+      return null;
+    }
     /**
      * the original parameters
      */
     public Map<String, Serializable> parameters;
+   
+  
     /**
      * tenant Id
      */
@@ -124,6 +162,19 @@ public abstract class BonitaCommand extends TenantCommand {
    */
   public abstract ExecuteAnswer executeCommand(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor);
 
+  
+  @SuppressWarnings("unchecked")
+  public ExecuteAnswer executeCommandVerbe(String verb, Map<String,Serializable> parameters, TenantServiceAccessor serviceAccessor)
+  {
+    ExecuteParameters executeParameters= new ExecuteParameters();
+    executeParameters.parameters = parameters;
+    executeParameters.verb = (String) parameters.get(cstVerb);
+    executeParameters.setTenantId( (Long) parameters.get(cstTenantId));
+    executeParameters.parametersCommand = (Map<String,Serializable>) parameters.get(BonitaCommand.cstParametersCommand);
+  
+    return executeCommand( executeParameters, serviceAccessor);
+  }
+  
   /**
    * the command may return any help and instruction to the developper
    * 
@@ -163,6 +214,7 @@ public abstract class BonitaCommand extends TenantCommand {
      * @throws SCommandParameterizationException
      * @throws SCommandExecutionException
      */
+    @SuppressWarnings("unchecked")
     private Serializable executeSingleton(Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor)
             throws SCommandParameterizationException, SCommandExecutionException {
 
