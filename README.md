@@ -31,3 +31,49 @@ Deploying a command via the API is complex.
 
 To help the deployment, object BonitaCommandDeployment encapsulate all the work. So, a custom page who want to deploy automatically a command can just use this object.
 
+ public DeployStatus checkAndDeployCommand(File pageDirectory, CommandAPI commandAPI, PlatformAPI platFormAPI,
+            long tenantId) {
+
+        BonitaCommandDeployment bonitaCommand = BonitaCommandDeployment.getInstance(MilkCmdControl.cstCommandName);
+
+        BonitaCommandDescription commandDescription = new BonitaCommandDescription(bonitaCommand, pageDirectory);
+        commandDescription.forceDeploy = false;
+        commandDescription.mainCommandClassName = MilkCmdControl.class.getName();
+        commandDescription.mainJarFile = "TruckMilk-1.0-Page.jar";
+        commandDescription.commandDescription = MilkCmdControl.cstCommandDescription;
+        // "bonita-commanddeployment-1.2.jar" is deployed automaticaly with BonitaCommandDeployment
+        // commandDescription.dependencyJars = new String[] { "bonita-event-1.5.0.jar", "bonita-properties-2.0.0.jar" }; // "mail-1.5.0-b01.jar", "activation-1.1.jar"};
+
+        commandDescription.addJarDependency("bonita-event", "1.5.0", "bonita-event-1.5.0.jar");
+        commandDescription.addJarDependency("bonita-properties", "2.1.0", "bonita-properties-2.1.0.jar");
+
+        DeployStatus deployStatus = bonitaCommand.checkAndDeployCommand(commandDescription, true, tenantId, commandAPI, platFormAPI);
+        return deployStatus;
+    }
+
+# Dependency policies
+Bonita does not manage a list of dependency per command. All dependencies are visible by all command.
+Second, it's not possible to get the content of the dependencie, and even not the list of dependencies via the commandAPI.
+
+Is that better to give a dependencie like "bonita-event-1.5.0" ? 
+  at one moment, you will have in the dependencies "bonita-event-1.4.0", bonita-event-1.5.0", 
+  you don't know which command use which dependencies, you may face a "NoSuchMethod" if the command load bonita-event-1.4.0 first
+
+Is that better to give a dependencie like "bonita-event" and then load the last one?
+  Sure, that's help (only one jar file). The point is : 
+  	a) to be sure the librairy is ascendent compatible (command developped with 1.4.0 can work with 1.5.0),
+  	b) how to load the last version? when you deploy a command embeded 1.4.0, you have to verify first if the JAR currently load is less than 1.4.0 before loading it
+
+BonitaDeployment can manage the two situations:
+        commandDescription.addJarDependency("bonita-event-1.5.0", "1.5.0", "bonita-event-1.5.0.jar");
+   This method load the JAR file, whatever the existing version
+   
+        commandDescription.addJarDependencyLastVersion("bonita-event", "1.5.0", "bonita-event-1.5.0.jar");
+   This method check the dependencies, and load the version only if the jar in the database is older.
+   The second parameters, the version, is then checked according the policy x.y.z 
+       
+        
+  	   
+  
+
+
