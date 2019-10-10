@@ -274,6 +274,47 @@ public class BonitaCommandDeployment {
         return resultCommandHashmap;
     }
 
+    /**
+     * Call the command, with a verb. ParametersCommand may be null.
+     * 
+     * @param parameters
+     * @param commandAPI
+     * @return
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> callDirectCommand( HashMap<String, Serializable> parametersCommand, long tenantId, CommandAPI commandAPI) {
+        List<BEvent> listEvents = new ArrayList<BEvent>();
+        Map<String, Object> resultCommandHashmap = new HashMap<String, Object>();
+
+        final CommandDescriptor command = getCommand(commandAPI);
+        if (command == null) {
+            logger.info(logHeader + "~~~~~~~~~~ callCommand() No Command[" + commandName + "] deployed");
+            listEvents.add(EVENT_NOT_DEPLOYED);
+            resultCommandHashmap.put(BonitaCommand.cstResultListEvents, BEventFactory.getHtml(listEvents));
+            return resultCommandHashmap;
+        }
+
+        try {
+            // see the command in CmdMeteor
+            logger.info(logHeader + "~~~~~~~~~~ Call Command[" + command.getId() + "]");
+            final Serializable resultCommand = commandAPI.execute(command.getId(), parametersCommand);
+
+            resultCommandHashmap = (Map<String, Object>) resultCommand;
+
+        } catch (final Exception e) {
+
+            StringWriter sw = new StringWriter();
+            e.printStackTrace(new PrintWriter(sw));
+            String exceptionDetails = sw.toString();
+
+            logger.severe(logHeader + "~~~~~~~~~~  : ERROR Command[" + command.getId() + "] " + e + " at " + exceptionDetails);
+            listEvents.add(new BEvent(EVENT_CALL_COMMAND, e, ""));
+        }
+        if (listEvents.size() != 0)
+            resultCommandHashmap.put(BonitaCommand.cstResultListEvents, BEventFactory.getHtml(listEvents));
+        logger.info(logHeader + "~~~~~~~~~~ : END Command[" + command.getId() + "] " + resultCommandHashmap);
+        return resultCommandHashmap;
+    }
     /* ******************************************************************************** */
     /*                                                                                  */
     /* Internal mechanism to deploy the command */
