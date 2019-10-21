@@ -20,16 +20,13 @@ public class BonitaCommandDescription {
 
     public boolean forceDeploy = false;
 
-    /**
-     * to be self content, the commandDescription contains the commandName. THis is not public, the BonitaCommandDeployement set it, to be coherent
-     */
-    private BonitaCommandDeployment bonitaCommandDeployment;
 
-    public BonitaCommandDescription(BonitaCommandDeployment bonitaCommandDeployment, File defaultPageDirectory) {
-        this.bonitaCommandDeployment = bonitaCommandDeployment;
+    public BonitaCommandDescription(String commandName, File defaultPageDirectory) {
+        this.commandName = commandName;
         this.defaultPageDirectory = defaultPageDirectory;
     }
 
+    public String commandName;
     /**
      * main class of the command: the command call this class. This class must herit from
      * BonitaCommand
@@ -46,10 +43,20 @@ public class BonitaCommandDescription {
      * in case of a deployment, we set this description in the command
      */
     public String commandDescription;
+    
+    /**
+     * return the command name
+     * @return
+     */
+    public String getCommandName() {
+        return commandName;
+    }
     /**
      * give a simple list of JAR name
      */
     public String[] dependencyJars = new String[0];
+    
+    
 
     /**
      * Bonita does not build a direct link between the jarName and the command.
@@ -68,8 +75,9 @@ public class BonitaCommandDescription {
      * then redeploy only if the
      * version is upper.
      */
-    private List<CommandJarDependency> dependencyJarsDescription = new ArrayList<CommandJarDependency>();
+    private List<CommandJarDependency> listDependencyJarsDescription = new ArrayList<CommandJarDependency>();
 
+   
     /**
      * descrive a jar description
      * 
@@ -80,8 +88,14 @@ public class BonitaCommandDescription {
         public String name;
         public String version;
         public String fileName;
+        /**
+         * lastVersionCheck : the current version of the dependency is study, whith the new one, and depencency is deploy only if the version is detected as new
+         */
         public boolean lastVersionCheck;
-
+        /**
+         * force the dependency to be deployed, everytime
+         */
+        public boolean forceDeploy=false;
         /**
          * File Directory. If null, the defaultOne in the commandDescription is used
          */
@@ -116,18 +130,25 @@ public class BonitaCommandDescription {
     }
 
     public void addJarDependency(String name, String version, String fileName) {
-        dependencyJarsDescription.add(new CommandJarDependency(name, version, fileName, false));
+        listDependencyJarsDescription.add(new CommandJarDependency(name, version, fileName, false));
     }
 
     public void addJarDependencyLastVersion(String name, String version, String fileName) {
-        dependencyJarsDescription.add(new CommandJarDependency(name, version, fileName, true));
+        listDependencyJarsDescription.add(new CommandJarDependency(name, version, fileName, true));
 
     }
 
     public void addJarDependency(String jarName) {
-        dependencyJarsDescription.add(new CommandJarDependency(jarName));
+        listDependencyJarsDescription.add(new CommandJarDependency(jarName));
     }
-
+    /**
+     * return the list of dependencie. call can modify it.
+     * @return
+     */
+    public List<CommandJarDependency> getListDependencies()
+    {
+        return listDependencyJarsDescription;
+    }
     /**
      * calculate the list of dependencies used to deploy.
      * The dependency for the command itself is added
@@ -139,7 +160,7 @@ public class BonitaCommandDescription {
         List<CommandJarDependency> listDependencies = new ArrayList<CommandJarDependency>();
         // add first the command
 
-        listDependencies.add(new CommandJarDependency(bonitaCommandDeployment.getName(), mainVersion, mainJarFile, false));
+        listDependencies.add(new CommandJarDependency(commandName, mainVersion, mainJarFile, false));
         boolean existJarCommandDeployement = false;
 
         // first, add the dependencyJar : only the filename is given
@@ -149,7 +170,7 @@ public class BonitaCommandDescription {
             listDependencies.add(new CommandJarDependency(jarName));
         }
         // Second, add the dependencyJar : only the filename is given
-        for (CommandJarDependency jarDependency : dependencyJarsDescription) {
+        for (CommandJarDependency jarDependency : listDependencyJarsDescription) {
             if (jarDependency.fileName.startsWith(BonitaCommandDeployment.NAME))
                 existJarCommandDeployement = true;
             listDependencies.add(jarDependency);

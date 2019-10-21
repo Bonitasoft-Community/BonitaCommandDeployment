@@ -2,7 +2,8 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>org.bonitasoft.command</groupId>
   <artifactId>bonita-commanddeployment</artifactId>
-  <version>1.4</version>
+  <!--  ATTENTION : when this number change, please change it in BonitaCommandDeployment.java -->
+  <version>1.5</version>
   <name>bonita-commanddeployment</name>
   <dependencies>
 

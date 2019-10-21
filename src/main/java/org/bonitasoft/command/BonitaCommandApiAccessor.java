@@ -4,6 +4,8 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.logging.Logger;
 
+import org.bonitasoft.command.BonitaCommand.ExecuteAnswer;
+import org.bonitasoft.command.BonitaCommand.ExecuteParameters;
 import org.bonitasoft.engine.api.APIAccessor;
 import org.bonitasoft.engine.connector.ConnectorAPIAccessorImpl;
 import org.bonitasoft.engine.service.TenantServiceAccessor;
@@ -32,6 +34,18 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
      */
     public abstract ExecuteAnswer executeCommandApiAccessor(ExecuteParameters executeParameters, APIAccessor apiAccessor);
 
+    public ExecuteAnswer afterDeployment(ExecuteParameters executeParameters, APIAccessor apiAccessor) {
+        ExecuteAnswer executeAnswer = new ExecuteAnswer();
+        executeAnswer.result.put("status", "OK");
+        return executeAnswer;
+    }
+    
+    public ExecuteAnswer afterRestart(ExecuteParameters executeParameters, APIAccessor apiAccessor) {
+        ExecuteAnswer executeAnswer = new ExecuteAnswer();
+        executeAnswer.result.put("status", "OK");
+        return executeAnswer;
+    }
+    
     public boolean waitAnswer() {
         return true;
     };
@@ -47,10 +61,16 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
      * this is in the command
      */
 
+    private enum CALL{ EXECUTE, AFTERDEPLOYMENT, AFTERRESTART };
     private class RunCommandApi implements Runnable {
 
         public Long lock = new Long(0);
-
+        CALL call;
+        
+        RunCommandApi( CALL call)
+        {
+            this.call = call;
+        }
         ExecuteParameters executeParameters;
         public BonitaCommandApiAccessor bonitaCommandAPI;
         /**
@@ -71,7 +91,13 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
             // create the ApiAccessor
             ConnectorAPIAccessorImpl apiAccessor = new ConnectorAPIAccessorImpl(executeParameters.tenantId);
             try {
-                executeAnswer = bonitaCommandAPI.executeCommandApiAccessor(executeParameters, apiAccessor);
+                if (call == CALL.EXECUTE)
+                    executeAnswer = bonitaCommandAPI.executeCommandApiAccessor(executeParameters, apiAccessor);
+                else if (call== CALL.AFTERDEPLOYMENT)
+                    executeAnswer = bonitaCommandAPI.afterDeployment(executeParameters, apiAccessor);
+                else if (call== CALL.AFTERRESTART)
+                    executeAnswer = bonitaCommandAPI.afterRestart(executeParameters, apiAccessor);
+                
             } catch (Exception e) {
                 StringWriter sw = new StringWriter();
                 e.printStackTrace(new PrintWriter(sw));
@@ -90,13 +116,9 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
         }
     } //-------------------------------- end RunCommandApi
 
-    /**
-     * command call this method.
-     * So, let's create a new thread, and wait for its return
-     */
-    @Override
-    public final ExecuteAnswer executeCommand(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) {
-        RunCommandApi runCommandApi = new RunCommandApi();
+
+    private ExecuteAnswer callThread(CALL call,ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) {
+        RunCommandApi runCommandApi = new RunCommandApi(call);
         runCommandApi.executeParameters = executeParameters;
         runCommandApi.bonitaCommandAPI = this;
         runCommandApi.myParentWaits = waitAnswer();
@@ -114,7 +136,26 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
             }
         }
         return new ExecuteAnswer();
-
+    }
+    /**
+     * command call this method.
+     * So, let's create a new thread, and wait for its return
+     */
+    @Override
+    public final ExecuteAnswer executeCommand(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) {
+        return callThread(CALL.EXECUTE, executeParameters, serviceAccessor);
     }
 
+    @Override
+    public ExecuteAnswer afterDeployment(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) 
+    {
+        return callThread(CALL.AFTERDEPLOYMENT, executeParameters, serviceAccessor);
+    }
+    
+    @Override
+    public ExecuteAnswer afterRestart(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) 
+    {
+        return callThread(CALL.AFTERRESTART, executeParameters, serviceAccessor);
+
+    }
 }

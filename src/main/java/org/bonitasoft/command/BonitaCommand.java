@@ -28,6 +28,33 @@ import org.bonitasoft.log.event.BEventFactory;
  * call. the getinstance() must decide, you return the same object or a new one
  * - manage the PING and any basic verb
  * - has the same method as the BonitaCommandDeployment.callCommand
+ * 
+ * 
+ * Different Object:
+ * 
+ * COMMAND => BonitaCommand                             ==> BonitaCommandAPIAccessor
+ *               |                                           |
+ *               -> your command                             -> Your command
+ *            afterDeployment(TenantServiceAccessor)        afterDeployment(APIAccessor)
+ *            afterRestart(TenantServiceAccessor)           afterRestart(APIAccessor)
+ *            executeCommand(TenantServiceAccessor)         executeCommand(APIAccessor)
+ * 
+ * Depend the API you want to work with, you can derive the BonitaCommand or the BonitaCommandAPIAccessor
+ * Ex on a execute:
+ *   COMMAND.execute
+ *       BonitaCommand.execute()
+ *          find the singleton
+ *          check PING / HELP / afterRestart        ==> Extend afterRestart, call afterRestart(APIAccessor)
+ *          else call executeCommand()
+ *                                                   BONITACommandAPIAccessor.executeCommand():
+ *                                                   t = new Thread()
+ *                                                   t.start() 
+ *                                                          t.run()
+ *                                                             CreateAPIAccessor
+ *                                                             executeCommand(APIAccessor)
+ *            
+ * 
+ * 
  */
 
 public abstract class BonitaCommand extends TenantCommand {
@@ -177,6 +204,19 @@ public abstract class BonitaCommand extends TenantCommand {
         executeAnswer.result.put("status", "OK");
         return executeAnswer;
     }
+    
+    /**
+     * this method is called one time, just after the deployment. So, command is free to finish all initialisation
+     * 
+     * @param executeParameters
+     * @param serviceAccessor
+     * @return
+     */
+    public ExecuteAnswer afterRestart(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) {
+        ExecuteAnswer executeAnswer = new ExecuteAnswer();
+        executeAnswer.result.put("status", "OK");
+        return executeAnswer;
+    }
 
     @SuppressWarnings("unchecked")
     public ExecuteAnswer executeCommandVerbe(String verb, Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor) {
@@ -219,7 +259,8 @@ public abstract class BonitaCommand extends TenantCommand {
         return executableCmdControl.executeSingleton(parameters, serviceAccessor);
     }
 
-    /**
+    
+     /**
      * Singleton object. All privates members are safe
      * 
      * @param parameters
@@ -232,13 +273,14 @@ public abstract class BonitaCommand extends TenantCommand {
     private Serializable executeSingleton(Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor)
             throws SCommandParameterizationException, SCommandExecutionException {
 
+        
+        
         long currentTime = System.currentTimeMillis();
         long startTime = System.currentTimeMillis();
-        ExecuteParameters executeParameters = new ExecuteParameters();
         ExecuteAnswer executeAnswer = null;
-
+        ExecuteParameters executeParameters = new ExecuteParameters();
         try {
-
+            
             executeParameters.parameters = parameters;
             executeParameters.verb = (String) parameters.get(cstVerb);
             executeParameters.setTenantId((Long) parameters.get(cstTenantId));
@@ -248,16 +290,25 @@ public abstract class BonitaCommand extends TenantCommand {
 
             // ------------------- ping ?
             if (cstVerbPing.equals(executeParameters.verb)) {
+                checkExecuteAfterRestart( parameters, serviceAccessor);
+                
                 // logger.info("CmdCreateMilk: ping");
                 executeAnswer = new ExecuteAnswer();
                 executeAnswer.result.put("ping", "hello world");
                 executeAnswer.result.put("status", "OK");
             } else if (cstVerbAfterDeployment.equals(executeParameters.verb)) {
                 executeAnswer = afterDeployment(executeParameters, serviceAccessor);
+                
+                checkExecuteAfterRestart( parameters, serviceAccessor);
+                
             } else if (cstVerbHelp.equals(executeParameters.verb)) {
+                checkExecuteAfterRestart( parameters, serviceAccessor);
+                
                 executeAnswer = new ExecuteAnswer();
                 executeAnswer.result.put("help", getHelp(parameters, executeParameters.tenantId, serviceAccessor));
             } else {
+                checkExecuteAfterRestart( parameters, serviceAccessor);
+                
                 executeAnswer = executeCommand(executeParameters, serviceAccessor);
             }
 
@@ -290,5 +341,18 @@ public abstract class BonitaCommand extends TenantCommand {
         if (executeAnswer.resultSerializable != null)
             return executeAnswer.resultSerializable;
         return executeAnswer.result;
+    }
+    
+    public boolean firstExecution=true;
+    
+    private void checkExecuteAfterRestart(Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor) {
+        if (firstExecution)
+        {
+            ExecuteParameters executeParametersRestart = new ExecuteParameters();
+            executeParametersRestart.setTenantId((Long) parameters.get(cstTenantId));
+
+            afterRestart(executeParametersRestart, serviceAccessor);
+            firstExecution= false;
+        }
     }
 }
