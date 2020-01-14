@@ -74,6 +74,35 @@ BonitaDeployment can manage the two situations:
        
         
   	   
-  
+# Internal architecture
+ *  BonitaCommand
+ 	Internal class. This class is the TenantCommand implementation. The engine call
+      	public Serializable execute(Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor)
+ 	BonitaCommand then call the methode BonitaCommand.executeSingleton()
+ 	This executeSingleton form the ExcuteParameters object, check if the call is for a PING, a AFTERDEPLOYMENT or anopther one.
+ 	If this is an another one, the call call the method (abstract)
+ 		ExecuteAnswer executeCommand(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor);
+ 
+ * BonitaCommandApiAccessor
+ 	A second class, implement BonitaCommand. This class implement the abstract method executeCommand(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor);
+ 	In order to give a (abstract) method 
+ 	    public abstract ExecuteAnswer executeCommandApiAccessor(ExecuteParameters executeParameters, APIAccessor apiAccessor);
+ 	this class implement the executeCommand().
+ 	In the implementation, the method start a new thread. The new thread call the executeCommandApiAccessor(). In the new thread, no Database connextion are open, then a APIAcessor can be created and given.
+ 	
+ 	When a user extend BonitaCommandApiAccessor, and implement executeCommandAPIAccessor(), this class extend BonitaCommand and BonitaCommandApiAccessor.
+ 	
+ 	Command call BonitaCommand.execute()
+ 	  This method check the verb, and then call BonitaCommand.executeCommand()
+ 	BonitaCommand.executeCommand() is implemented by BonitaCommandAPIAccessor()
+ 	  	BonitaCommandAPIAccessor creates a thread, and the thread call executeCommandApiAccessor()
+ 	 This is your class.
+ 
+ * BonitaCommandDeployment
+   This method simplify the command deployment and call. At deploiment, this class check if the command is already deployed / or is new (compare the Signature on file)
+   THis class check and deploy the dependencie, based on the date on the JAR and the date in database (BonitaDependencie does not saved version).
+ 
+ * BonitaCommandDescription
+    Class to manipulate the command description.
 
 
