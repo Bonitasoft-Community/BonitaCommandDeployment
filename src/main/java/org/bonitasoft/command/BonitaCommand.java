@@ -59,11 +59,14 @@ import org.bonitasoft.log.event.BEventFactory;
 
 public abstract class BonitaCommand extends TenantCommand {
 
-    static Logger logger = Logger.getLogger(BonitaCommand.class.getName());
+    protected static Logger logger = Logger.getLogger(BonitaCommand.class.getName());
 
-    static String logHeader = "BonitaCommand ~~~";
+    private static String logHeader = "BonitaCommand ~~~";
 
-    private static BEvent EVENT_INTERNAL_ERROR = new BEvent(BonitaCommand.class.getName(), 1, Level.ERROR,
+    
+    public final static String CSTANSWER_STATUS = "status";
+    
+    private final static BEvent eventInternalError = new BEvent(BonitaCommand.class.getName(), 1, Level.ERROR,
             "Internal error", "Internal error, check the log");
 
     /* ******************************************************************************** */
@@ -75,19 +78,19 @@ public abstract class BonitaCommand extends TenantCommand {
     /**
      * this constant is defined too in MilkQuartzJob to have an independent JAR
      */
-    public static String cstVerb = "verb";
-    public static String cstVerbAfterDeployment = "AFTERDEPLOYMENT";
-    public static String cstVerbPing = "PING";
-    public static String cstVerbHelp = "HELP";
+    public final static String CST_VERB = "verb";
+    public final static String CST_VERB_AFTERDEPLOIMENT = "AFTERDEPLOYMENT";
+    public final static String CST_VERB_PING = "PING";
+    public final static String CST_VER_HELP = "HELP";
 
     /**
      * this constant is defined too in MilkQuartzJob to have an independent JAR
      */
-    public static String cstTenantId = "tenantId";
-    public static String cstParametersCommand = "parametersCmd";
+    public final static String CST_TENANTID = "tenantId";
+    public final static String CST_PARAMETER_COMMAND = "parametersCmd";
 
-    public static String cstResultTimeInMs = "timeinms";
-    public static String cstResultListEvents = "listevents";
+    public final static String CST_RESULT_TIMEINMS = "timeinms";
+    public final static String CST_RESULT_LISTEVENTS = "listevents";
 
     /* ******************************************************************************** */
     /*                                                                                  */
@@ -119,20 +122,27 @@ public abstract class BonitaCommand extends TenantCommand {
 
         /** to avoid the cast, return as String parameters. If the parameter is not a String, return null */
         public String getParametersString(String name) {
+            return getParametersString(name, null);
+        }
+        public String getParametersString(String name, String defaultValue) {
             if (parametersCommand.get(name) == null)
-                return null;
+                return defaultValue;
             if (parametersCommand.get(name) instanceof String)
                 return (String) parametersCommand.get(name);
-            return null;
+            return defaultValue;
         }
-
+        
         /** to avoid the cast, return as Long parameters. If the parameter is not a Long, return null */
         public Long getParametersLong(String name) {
+            return getParametersLong(name, null);
+        }
+        /** to avoid the cast, return as Long parameters. If the parameter is not a Long, return null */
+        public Long getParametersLong(String name, Long defaultValue) {
             if (parametersCommand.get(name) == null)
-                return null;
+                return defaultValue;
             if (parametersCommand.get(name) instanceof Long)
                 return (Long) parametersCommand.get(name);
-            return null;
+            return defaultValue;
         }
 
         /** to avoid the cast, return as String parameters. If the parameter is not a String, return null */
@@ -146,13 +156,15 @@ public abstract class BonitaCommand extends TenantCommand {
         }
 
         public Boolean getParametersBoolean(String name) {
+           return getParametersBoolean(name, null);
+        }
+        public Boolean getParametersBoolean(String name, Boolean defaultValue) {
             if (parametersCommand.get(name) == null)
-                return null;
+                return defaultValue;
             if (parametersCommand.get(name) instanceof Boolean)
                 return (Boolean) parametersCommand.get(name);
-            return null;
+            return defaultValue;
         }
-
         /**
          * the original parameters
          */
@@ -172,7 +184,8 @@ public abstract class BonitaCommand extends TenantCommand {
 
         public boolean logAnswer = true;
         public List<BEvent> listEvents = new ArrayList<BEvent>();
-        public HashMap<String, Object> result = new HashMap<String, Object>();
+        // to keep the serialisation, it must be a HashMap()
+        public HashMap<String, Object> result = new HashMap<>();
         /*
          * the command may want to manage directly the serializatble. Then, it can do that, just
          */
@@ -222,9 +235,9 @@ public abstract class BonitaCommand extends TenantCommand {
     public ExecuteAnswer executeCommandVerbe(String verb, Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor) {
         ExecuteParameters executeParameters = new ExecuteParameters();
         executeParameters.parameters = parameters;
-        executeParameters.verb = (String) parameters.get(cstVerb);
-        executeParameters.setTenantId((Long) parameters.get(cstTenantId));
-        executeParameters.parametersCommand = (Map<String, Serializable>) parameters.get(BonitaCommand.cstParametersCommand);
+        executeParameters.verb = (String) parameters.get(CST_VERB);
+        executeParameters.setTenantId((Long) parameters.get(CST_TENANTID));
+        executeParameters.parametersCommand = (Map<String, Serializable>) parameters.get(BonitaCommand.CST_PARAMETER_COMMAND);
 
         return executeCommand(executeParameters, serviceAccessor);
     }
@@ -282,26 +295,26 @@ public abstract class BonitaCommand extends TenantCommand {
         try {
             
             executeParameters.parameters = parameters;
-            executeParameters.verb = (String) parameters.get(cstVerb);
-            executeParameters.setTenantId((Long) parameters.get(cstTenantId));
-            executeParameters.parametersCommand = (Map<String, Serializable>) parameters.get(BonitaCommand.cstParametersCommand);
+            executeParameters.verb = (String) parameters.get(CST_VERB);
+            executeParameters.setTenantId((Long) parameters.get(CST_TENANTID));
+            executeParameters.parametersCommand = (Map<String, Serializable>) parameters.get(BonitaCommand.CST_PARAMETER_COMMAND);
 
             logger.fine(logHeader + "BonitaCommand Verb[" + (executeParameters.verb == null ? null : executeParameters.verb.toString()) + "] Tenant[" + executeParameters.tenantId + "]");
 
             // ------------------- ping ?
-            if (cstVerbPing.equals(executeParameters.verb)) {
+            if (CST_VERB_PING.equals(executeParameters.verb)) {
                 checkExecuteAfterRestart( parameters, serviceAccessor);
                 
                 // logger.info("CmdCreateMilk: ping");
                 executeAnswer = new ExecuteAnswer();
                 executeAnswer.result.put("ping", "hello world");
                 executeAnswer.result.put("status", "OK");
-            } else if (cstVerbAfterDeployment.equals(executeParameters.verb)) {
+            } else if (CST_VERB_AFTERDEPLOIMENT.equals(executeParameters.verb)) {
                 executeAnswer = afterDeployment(executeParameters, serviceAccessor);
                 
                 checkExecuteAfterRestart( parameters, serviceAccessor);
                 
-            } else if (cstVerbHelp.equals(executeParameters.verb)) {
+            } else if (CST_VER_HELP.equals(executeParameters.verb)) {
                 checkExecuteAfterRestart( parameters, serviceAccessor);
                 
                 executeAnswer = new ExecuteAnswer();
@@ -320,12 +333,12 @@ public abstract class BonitaCommand extends TenantCommand {
             if (executeAnswer == null)
                 executeAnswer = new ExecuteAnswer();
 
-            executeAnswer.listEvents.add(new BEvent(EVENT_INTERNAL_ERROR, e.getMessage()));
+            executeAnswer.listEvents.add(new BEvent(eventInternalError, e.getMessage()));
         } finally {
             if (executeAnswer == null)
                 executeAnswer = new ExecuteAnswer();
-            executeAnswer.result.put(cstResultTimeInMs, System.currentTimeMillis() - currentTime);
-            executeAnswer.result.put(cstResultListEvents, BEventFactory.getHtml(executeAnswer.listEvents));
+            executeAnswer.result.put(CST_RESULT_TIMEINMS, System.currentTimeMillis() - currentTime);
+            executeAnswer.result.put(CST_RESULT_LISTEVENTS, BEventFactory.getHtml(executeAnswer.listEvents));
             if (executeAnswer.logAnswer)
                 logger.info(logHeader + "Verb[" + (executeParameters.verb == null ? "null" : executeParameters.verb.toString()) + "] Tenant["
                         + executeParameters.tenantId + "] Error?" + BEventFactory.isError(executeAnswer.listEvents) + " in "
@@ -349,7 +362,7 @@ public abstract class BonitaCommand extends TenantCommand {
         if (firstExecution)
         {
             ExecuteParameters executeParametersRestart = new ExecuteParameters();
-            executeParametersRestart.setTenantId((Long) parameters.get(cstTenantId));
+            executeParametersRestart.setTenantId((Long) parameters.get(CST_TENANTID));
 
             afterRestart(executeParametersRestart, serviceAccessor);
             firstExecution= false;

@@ -85,23 +85,26 @@ public class BonitaCommandDescription {
      */
     public class CommandJarDependency {
 
-        public String name;
-        public String version;
-        public String fileName;
+        
+      
+
+        private String name;
+        private String version;
+        private String fileName;
         /**
          * lastVersionCheck : the current version of the dependency is study, whith the new one, and depencency is deploy only if the version is detected as new
          */
-        public boolean lastVersionCheck;
+        private boolean lastVersionCheck;
         /**
          * force the dependency to be deployed, everytime
          */
-        public boolean forceDeploy=false;
+        private boolean forceDeploy=false;
         /**
          * File Directory. If null, the defaultOne in the commandDescription is used
          */
-        public File pageDirectory = null;
+        private File pageDirectory = null;
 
-        public void setPageDirectory(  File pageDirectory ) {
+        public void setPageDirectory( File pageDirectory ) {
             this.pageDirectory = pageDirectory ;
         }
         public String getCompleteFileName() {
@@ -121,26 +124,91 @@ public class BonitaCommandDescription {
             this.lastVersionCheck = lastVersionCheck;
         }
 
+        
         protected CommandJarDependency(String jarName) {
             this.name = jarName;
             this.fileName = jarName;
             this.version = "";
         }
+        
+       
+        public String getName() {
+            return name;
+        }
+        
+        public void setName(String name) {
+            this.name = name;
+        }
+        
+        public String getVersion() {
+            return version;
+        }
+        
+        public void setVersion(String version) {
+            this.version = version;
+        }
+        
+        public String getFileName() {
+            return fileName;
+        }
+        
+        public void setFileName(String fileName) {
+            this.fileName = fileName;
+        }
+        
+        public boolean isLastVersionCheck() {
+            return lastVersionCheck;
+        }
+        
+        public void setLastVersionCheck(boolean lastVersionCheck) {
+            this.lastVersionCheck = lastVersionCheck;
+        }
+        
+        public boolean isForceDeploy() {
+            return forceDeploy;
+        }
+        
+        public void setForceDeploy(boolean forceDeploy) {
+            this.forceDeploy = forceDeploy;
+        }
+        
+        public File getPageDirectory() {
+            return pageDirectory;
+        }
 
     }
 
-    public void addJarDependency(String name, String version, String fileName) {
-        listDependencyJarsDescription.add(new CommandJarDependency(name, version, fileName, false));
+    
+    public CommandJarDependency addJarDependency(String name, String version, String fileName) {
+        CommandJarDependency cmdDependency = new CommandJarDependency(name, version, fileName, false); 
+        listDependencyJarsDescription.add( cmdDependency );
+        return cmdDependency;
     }
 
-    public void addJarDependencyLastVersion(String name, String version, String fileName) {
-        listDependencyJarsDescription.add(new CommandJarDependency(name, version, fileName, true));
-
+    public CommandJarDependency addJarDependencyLastVersion(String name, String version, String fileName) {
+        CommandJarDependency cmdDependency = new CommandJarDependency(name, version, fileName, true);
+        listDependencyJarsDescription.add( cmdDependency );
+        return cmdDependency;
     }
 
-    public void addJarDependency(String jarName) {
-        listDependencyJarsDescription.add(new CommandJarDependency(jarName));
+    public CommandJarDependency addJarDependency(String jarName) {
+        CommandJarDependency cmdDependency = new CommandJarDependency(jarName);
+        listDependencyJarsDescription.add( cmdDependency );
+        return cmdDependency;
     }
+    public CommandJarDependency addJarDependency(CommandJarDependency cmdDependency) {
+        listDependencyJarsDescription.add( cmdDependency );
+        return cmdDependency;
+    }
+
+    /**
+     * remove an item
+     * @param cmdDependency
+     */
+    public void removeInListDependencies( CommandJarDependency cmdDependency ) {
+        listDependencyJarsDescription.remove( cmdDependency );
+    }
+
     /**
      * return the list of dependencie. call can modify it.
      * @return

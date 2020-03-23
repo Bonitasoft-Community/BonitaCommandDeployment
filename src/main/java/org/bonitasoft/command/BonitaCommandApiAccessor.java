@@ -34,21 +34,37 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
      */
     public abstract ExecuteAnswer executeCommandApiAccessor(ExecuteParameters executeParameters, APIAccessor apiAccessor);
 
+    /**
+     * this method is call when the command is deployed. Additional management can be done then (create tables...)
+     * @param executeParameters
+     * @param apiAccessor
+     * @return
+     */
     public ExecuteAnswer afterDeployment(ExecuteParameters executeParameters, APIAccessor apiAccessor) {
-        ExecuteAnswer executeAnswer = new ExecuteAnswer();
-        executeAnswer.result.put("status", "OK");
-        return executeAnswer;
+        return returnOkAnswer();
     }
     
+    /**
+     * When the Bonita Server restart, at the first call after the restart, this method is call.
+     * It's not immediately after the restart, we have to wait the first call on the command.
+     * @param executeParameters
+     * @param apiAccessor
+     * @return
+     */
     public ExecuteAnswer afterRestart(ExecuteParameters executeParameters, APIAccessor apiAccessor) {
-        ExecuteAnswer executeAnswer = new ExecuteAnswer();
-        executeAnswer.result.put("status", "OK");
-        return executeAnswer;
+        return returnOkAnswer();
     }
     
+  
+    /**
+     * Bonita call a command, in a transaction. To avoid the transaction, and then access the Bonita API, BonitaCommandDeployment starts a new thread.
+     * Then, it will wait the result of the tread, to return a answer.
+     * You can decide to not wait the answer, then return immediately the call (with no answer).  
+     * @return
+     */
     public boolean waitAnswer() {
         return true;
-    };
+    }
 
     /**
      * you can implements method like getHelp
@@ -61,10 +77,11 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
      * this is in the command
      */
 
-    private enum CALL{ EXECUTE, AFTERDEPLOYMENT, AFTERRESTART };
+    private enum CALL{ EXECUTE, AFTERDEPLOYMENT, AFTERRESTART }
+    
     private class RunCommandApi implements Runnable {
 
-        public Long lock = new Long(0);
+        public Long lock = Long.valueOf(0);
         CALL call;
         
         RunCommandApi( CALL call)
@@ -132,13 +149,14 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
                     return runCommandApi.executeAnswer;
                 } catch (InterruptedException e) {
                     logger.severe("BonitaCommandAPI. error " + e.toString());
+                    Thread.currentThread().interrupt();
                 }
             }
         }
         return new ExecuteAnswer();
     }
     /**
-     * command call this method.
+     * BonitaCommand call this method. Then, the implementation is to call a Thread to execute this outside the transaction.
      * So, let's create a new thread, and wait for its return
      */
     @Override
@@ -146,6 +164,7 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
         return callThread(CALL.EXECUTE, executeParameters, serviceAccessor);
     }
 
+    
     @Override
     public ExecuteAnswer afterDeployment(ExecuteParameters executeParameters, TenantServiceAccessor serviceAccessor) 
     {
@@ -157,5 +176,11 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
     {
         return callThread(CALL.AFTERRESTART, executeParameters, serviceAccessor);
 
+    }
+    
+    private ExecuteAnswer returnOkAnswer() {
+        ExecuteAnswer executeAnswer = new ExecuteAnswer();
+        executeAnswer.result.put(CSTANSWER_STATUS, "OK");
+        return executeAnswer;
     }
 }
