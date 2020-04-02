@@ -81,7 +81,7 @@ public abstract class BonitaCommand extends TenantCommand {
     public final static String CST_VERB = "verb";
     public final static String CST_VERB_AFTERDEPLOIMENT = "AFTERDEPLOYMENT";
     public final static String CST_VERB_PING = "PING";
-    public final static String CST_VER_HELP = "HELP";
+    public final static String CST_VERBE_HELP = "HELP";
 
     /**
      * this constant is defined too in MilkQuartzJob to have an independent JAR
@@ -120,6 +120,7 @@ public abstract class BonitaCommand extends TenantCommand {
         public String verb;
         public Map<String, Serializable> parametersCommand;
 
+        
         /** to avoid the cast, return as String parameters. If the parameter is not a String, return null */
         public String getParametersString(String name) {
             return getParametersString(name, null);
@@ -142,6 +143,22 @@ public abstract class BonitaCommand extends TenantCommand {
                 return defaultValue;
             if (parametersCommand.get(name) instanceof Long)
                 return (Long) parametersCommand.get(name);
+            try {
+                return Long.parseLong( parametersCommand.get(name).toString());
+            }
+            catch(Exception e) {}
+            return defaultValue;
+        }
+        /** to avoid the cast, return as Long parameters. If the parameter is not a Long, return null */
+        public Integer getParametersInt(String name, Integer defaultValue) {
+            if (parametersCommand.get(name) == null)
+                return defaultValue;
+            if (parametersCommand.get(name) instanceof Integer)
+                return (Integer) parametersCommand.get(name);
+            try {
+                return Integer.parseInt( parametersCommand.get(name).toString());
+            }
+            catch(Exception e) {}
             return defaultValue;
         }
 
@@ -183,7 +200,7 @@ public abstract class BonitaCommand extends TenantCommand {
     public static class ExecuteAnswer {
 
         public boolean logAnswer = true;
-        public List<BEvent> listEvents = new ArrayList<BEvent>();
+        public List<BEvent> listEvents = new ArrayList<>();
         // to keep the serialisation, it must be a HashMap()
         public HashMap<String, Object> result = new HashMap<>();
         /*
@@ -233,10 +250,11 @@ public abstract class BonitaCommand extends TenantCommand {
 
     @SuppressWarnings("unchecked")
     public ExecuteAnswer executeCommandVerbe(String verb, Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor) {
-        ExecuteParameters executeParameters = new ExecuteParameters();
+        ExecuteParameters executeParameters = new ExecuteParameters();        
         executeParameters.parameters = parameters;
         executeParameters.verb = (String) parameters.get(CST_VERB);
         executeParameters.setTenantId((Long) parameters.get(CST_TENANTID));
+        
         executeParameters.parametersCommand = (Map<String, Serializable>) parameters.get(BonitaCommand.CST_PARAMETER_COMMAND);
 
         return executeCommand(executeParameters, serviceAccessor);
@@ -268,7 +286,7 @@ public abstract class BonitaCommand extends TenantCommand {
     public Serializable execute(Map<String, Serializable> parameters, TenantServiceAccessor serviceAccessor)
             throws SCommandParameterizationException, SCommandExecutionException {
 
-        BonitaCommand executableCmdControl = getInstance();
+        BonitaCommand executableCmdControl = getInstance();        
         return executableCmdControl.executeSingleton(parameters, serviceAccessor);
     }
 
@@ -298,7 +316,8 @@ public abstract class BonitaCommand extends TenantCommand {
             executeParameters.verb = (String) parameters.get(CST_VERB);
             executeParameters.setTenantId((Long) parameters.get(CST_TENANTID));
             executeParameters.parametersCommand = (Map<String, Serializable>) parameters.get(BonitaCommand.CST_PARAMETER_COMMAND);
-
+            
+            
             logger.fine(logHeader + "BonitaCommand Verb[" + (executeParameters.verb == null ? null : executeParameters.verb.toString()) + "] Tenant[" + executeParameters.tenantId + "]");
 
             // ------------------- ping ?
@@ -314,7 +333,7 @@ public abstract class BonitaCommand extends TenantCommand {
                 
                 checkExecuteAfterRestart( parameters, serviceAccessor);
                 
-            } else if (CST_VER_HELP.equals(executeParameters.verb)) {
+            } else if (CST_VERBE_HELP.equals(executeParameters.verb)) {
                 checkExecuteAfterRestart( parameters, serviceAccessor);
                 
                 executeAnswer = new ExecuteAnswer();

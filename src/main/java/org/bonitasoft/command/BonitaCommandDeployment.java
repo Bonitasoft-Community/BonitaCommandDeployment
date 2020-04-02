@@ -52,9 +52,9 @@ import org.bonitasoft.log.event.BEventFactory;
  */
 public class BonitaCommandDeployment {
 
-    public static String JAR_NAME = "bonita-commanddeployment-1.6.jar";
-    public static String NAME = "bonita-commanddeployment";
-    public static String VERSION = "1.6";
+    public final static String JAR_NAME = "bonita-commanddeployment-1.7.jar";
+    public final static String NAME = "bonita-commanddeployment";
+    public final static String VERSION = "1.7";
 
     static Logger logger = Logger.getLogger(BonitaCommandDeployment.class.getName());
 

@@ -79,15 +79,10 @@ public class BonitaCommandDescription {
 
    
     /**
-     * descrive a jar description
+     * describe a jar description
      * 
-     * @author Firstname Lastname
      */
     public class CommandJarDependency {
-
-        
-      
-
         private String name;
         private String version;
         private String fileName;
