@@ -3,7 +3,10 @@
 	<groupId>org.bonitasoft.command</groupId>
 	<artifactId>bonita-commanddeployment</artifactId>
 	<!-- ATTENTION : when this number change, please change it in BonitaCommandDeployment.java -->
-	<version>1.7</version>
+	<version>1.8.0</version>
+	
+	<!--  History -->
+	<!--  1.8 : in case of a forceDeploy, purge then all existing dependency with the same name -->
 	<name>bonita-commanddeployment</name>
 
 	<properties>
