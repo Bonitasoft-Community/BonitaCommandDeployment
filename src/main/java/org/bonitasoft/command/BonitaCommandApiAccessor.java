@@ -8,8 +8,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.logging.Logger;
 
-import org.bonitasoft.command.BonitaCommand.ExecuteAnswer;
-import org.bonitasoft.command.BonitaCommand.ExecuteParameters;
 import org.bonitasoft.engine.api.APIAccessor;
 import org.bonitasoft.engine.connector.ConnectorAPIAccessorImpl;
 import org.bonitasoft.engine.service.TenantServiceAccessor;
@@ -27,6 +25,9 @@ import org.bonitasoft.engine.service.TenantServiceAccessor;
 
 public abstract class BonitaCommandApiAccessor extends BonitaCommand {
 
+    // This class generate one thread, and keep it. So, it's important to generate this only one to keep the number of thread generated under control. 
+    private final static ExecutorService executor =   Executors.newCachedThreadPool(r -> new Thread(r, "BonitaCommandAPI"));
+    
     /**
      * implement this Method
      * 
@@ -154,7 +155,6 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
         FutureTask<String> futureTask = new FutureTask<>(runCommandApi, "Run Command");
 
         // create thread pool of 1 size for ExecutorService 
-        ExecutorService executor = Executors.newFixedThreadPool(1);
         executor.execute(futureTask);
 
         if (runCommandApi.myParentWaits) {

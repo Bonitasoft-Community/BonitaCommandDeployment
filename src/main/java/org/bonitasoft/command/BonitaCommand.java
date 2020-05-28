@@ -139,6 +139,8 @@ public abstract class BonitaCommand extends TenantCommand {
         }
         /** to avoid the cast, return as Long parameters. If the parameter is not a Long, return null */
         public Long getParametersLong(String name, Long defaultValue) {
+            if (parametersCommand==null)
+                return defaultValue;
             if (parametersCommand.get(name) == null)
                 return defaultValue;
             if (parametersCommand.get(name) instanceof Long)

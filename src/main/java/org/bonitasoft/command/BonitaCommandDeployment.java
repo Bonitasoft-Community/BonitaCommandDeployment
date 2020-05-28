@@ -52,9 +52,9 @@ import org.bonitasoft.log.event.BEventFactory;
  */
 public class BonitaCommandDeployment {
 
-    public final static String JAR_NAME = "bonita-commanddeployment-1.8.0.jar";
+    public final static String JAR_NAME = "bonita-commanddeployment-1.9.0.jar";
     public final static String NAME = "bonita-commanddeployment";
-    public final static String VERSION = "1.8.0";
+    public final static String VERSION = "1.9.0";
 
     static Logger logger = Logger.getLogger(BonitaCommandDeployment.class.getName());
 
@@ -417,13 +417,15 @@ public class BonitaCommandDeployment {
                                 deployNewDependency = false; // we found a better version, no deployment at all
                             if (isUpper) {
                                 // we found a old version, delete that one. Do not change the deployNewDependency, we may found a better before.
+                                long startRemoveDependency = System.currentTimeMillis();
+
                                 try {
                                     commandAPI.removeDependency(existingDependencie);
                                 } catch (DependencyNotFoundException nf) {
                                 } catch (Exception e) {
                                     deployStatus.message.append(logDeploy(threadId, "ErrorRemoveDependency"));
                                 }
-
+                                deployStatus.message.append(logDeploy(threadId, "RemoveDependencie[" + jarDependency.getName() + "] in "+(System.currentTimeMillis() - startRemoveDependency) + " ms"));
                             }
                         }
                     }
@@ -434,6 +436,7 @@ public class BonitaCommandDeployment {
                     }
                     deployStatus.message.append("DEPLOY;");
                 } else {
+                    long startRemoveDependency = System.currentTimeMillis();
                     try {
                         try {
                             commandAPI.removeDependency(jarDependency.getName());
@@ -457,6 +460,7 @@ public class BonitaCommandDeployment {
                     } catch (Exception e) {
                         deployStatus.message.append(logDeploy(threadId, "ErrorRemoveDependency"));
                     }
+                    deployStatus.message.append(logDeploy(threadId, "RemoveDependencie[" + jarDependency.getName() + "] in "+(System.currentTimeMillis() - startRemoveDependency) + " ms"));
                 }
                 
                 String nameDependencyToDeploy;
@@ -489,31 +493,38 @@ public class BonitaCommandDeployment {
                 }
                 // message += "Adding jarName [" + onejar.jarName + "] size[" + fileContent.size() + "]...";
                 if (deployDependencyOk) {
+                    long startAddDependency = System.currentTimeMillis();
                     try {
                         commandAPI.addDependency(nameDependencyToDeploy, fileContent.toByteArray());
-                        deployStatus.message.append(logDeploy(threadId, "dependencyDeployed in " + (System.currentTimeMillis() - startTimeDependency) + " ms"));
+                        long currentTime=System.currentTimeMillis();
+                        deployStatus.message.append(logDeploy(threadId, "Add["+jarDependency.getName()+"] Name["+nameDependencyToDeploy+"] in " + (currentTime - startAddDependency)+", total "+(currentTime - startTimeDependency) + " ms"));
                     } catch (AlreadyExistsException ae) {
                         deployStatus.message.append(logDeploy(threadId, "AlreadyExist" + jarDependency.getName() + "]  in " + (System.currentTimeMillis() - startTimeDependency) + " ms"));
-                        deployStatus.listEvents.add(new BEvent(EVENT_DEPLOY_DEPENDENCY, "Dependency[" + jarDependency.getName() + "] File[" + jarDependency.getCompleteFileName() + "]"));
+                        deployStatus.listEvents.add(new BEvent(EVENT_DEPLOY_DEPENDENCY, "Dependency[" + jarDependency.getName()+"] Name["+nameDependencyToDeploy + "] File[" + jarDependency.getCompleteFileName() + "]"));
                     }
+                   
+
                 }
             } // end dependency
 
             // --- register command
             if (!BEventFactory.isError(deployStatus.listEvents)) {
-                long startTimeCommand = System.currentTimeMillis();
                 deployStatus.message.append(logDeploy(threadId, "Registering Command..."));
+                
+                long startRegisterCommand = System.currentTimeMillis();
                 deployStatus.commandDescriptor = commandAPI.register(commandName,
                         deployStatus.signatureJar + "#" + commandDescription.commandDescription, commandDescription.mainCommandClassName);
-
+                long currentTime = System.currentTimeMillis();
                 deployStatus.listEvents.add(new BEvent(eventDeployedWithSuccess, deployStatus.message.toString()));
                 deployStatus.newDeployment = true;
-                deployStatus.message.append(logDeploy(threadId, "Command Deployed in " + (System.currentTimeMillis() - startTime) + " ms (registering in " + (System.currentTimeMillis() - startTimeCommand) + " ms)"));
+                deployStatus.message.append(logDeploy(threadId, "Register Command in "+(currentTime-startRegisterCommand)+" ms, Total Deployement in " + (System.currentTimeMillis() - startTime) + " ms"));
             }
 
             if (platFormAPI != null) {
                 platFormAPI.startNode();
             }
+            // let log as INFO all the deployment
+            logger.info(deployStatus.message.toString());
             return deployStatus;
 
         } catch (Exception e) {
