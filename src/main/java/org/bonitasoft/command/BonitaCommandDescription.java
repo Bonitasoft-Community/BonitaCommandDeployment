@@ -220,7 +220,7 @@ public class BonitaCommandDescription {
      * @return
      */
     public List<CommandJarDependency> getListDependenciesToDeploy() {
-        List<CommandJarDependency> listDependencies = new ArrayList<CommandJarDependency>();
+        List<CommandJarDependency> listDependencies = new ArrayList<>();
         // add first the command
 
         listDependencies.add(new CommandJarDependency(commandName, mainVersion, mainJarFile, false));
