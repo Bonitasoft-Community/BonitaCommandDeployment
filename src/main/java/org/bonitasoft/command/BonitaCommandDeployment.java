@@ -40,6 +40,8 @@ import org.bonitasoft.log.event.BEvent;
 import org.bonitasoft.log.event.BEvent.Level;
 import org.bonitasoft.log.event.BEventFactory;
 
+import antlr.debug.MessageEvent;
+
 /**
  * this class manage the Deployment of a command
  * It can check if the command is already deployed, to not deploy it twice and save time. To see if the command is the same,
@@ -54,38 +56,38 @@ import org.bonitasoft.log.event.BEventFactory;
  */
 public class BonitaCommandDeployment {
 
-    public final static String JAR_NAME = "bonita-commanddeployment-2.1.0.jar";
     public final static String NAME = "bonita-commanddeployment";
-    public final static String VERSION = "2.1.0";
+    public final static String VERSION = "2.1.1";
+    public final static String JAR_NAME = "bonita-commanddeployment-"+VERSION+".jar";
 
     static Logger logger = Logger.getLogger(BonitaCommandDeployment.class.getName());
 
     private static String logHeader = "BonitaCommandDeployment";
 
-    private static BEvent eventDeployedWithSuccess = new BEvent(BonitaCommandDeployment.class.getName(), 1, Level.INFO,
+    private final static BEvent eventDeployedWithSuccess = new BEvent(BonitaCommandDeployment.class.getName(), 1, Level.INFO,
             "Command deployed with success", "The command are correctly deployed");
 
-    private static BEvent EVENT_ERROR_AT_DEPLOYEMENT = new BEvent(BonitaCommandDeployment.class.getName(), 2,
+    private final static BEvent eventErrorAtDeployment = new BEvent(BonitaCommandDeployment.class.getName(), 2,
             Level.APPLICATIONERROR, "Error during deployment of the command", "The command are not deployed",
             "The command can not work", "Check the exception");
 
-    private static BEvent EVENT_NOT_DEPLOYED = new BEvent(BonitaCommandDeployment.class.getName(), 3, Level.ERROR,
+    private final static BEvent eventNotDeployed = new BEvent(BonitaCommandDeployment.class.getName(), 3, Level.ERROR,
             "Command not deployed", "The command is not deployed");
 
-    private static BEvent EVENT_CALL_COMMAND = new BEvent(BonitaCommandDeployment.class.getName(), 4, Level.ERROR,
+    private final static BEvent eventCallCommand = new BEvent(BonitaCommandDeployment.class.getName(), 4, Level.ERROR,
             "Error during calling a command", "Check the error", "Function can't be executed", "See the error");
 
-    private static BEvent EVENT_PING_ERROR = new BEvent(BonitaCommandDeployment.class.getName(), 5, Level.ERROR,
+    private final static BEvent eventPingError = new BEvent(BonitaCommandDeployment.class.getName(), 5, Level.ERROR,
             "Ping error", "Command does not response", "A command is not responding", "See the error");
 
-    private static BEvent EVENT_MISSING_DEPENDENCY = new BEvent(BonitaCommandDeployment.class.getName(), 6,
+    private final static BEvent eventMissingDependency = new BEvent(BonitaCommandDeployment.class.getName(), 6,
             Level.APPLICATIONERROR, "Missing dependency", "A dependency is not found",
             "The command can't work", "Check the exception");
 
-    private static BEvent EVENT_DEPLOY_DEPENDENCY = new BEvent(BonitaCommandDeployment.class.getName(), 7,
+    private final static BEvent eventDeployDependency = new BEvent(BonitaCommandDeployment.class.getName(), 7,
             Level.APPLICATIONERROR, "Deploy dependency", "A error arrived when a dependency has to be deployed",
             "The command can't work", "Check the exception");
-    private static BEvent eventErrorAtUndeployment = new BEvent(BonitaCommandDeployment.class.getName(), 8,
+    private final static BEvent eventErrorAtUndeployment = new BEvent(BonitaCommandDeployment.class.getName(), 8,
             Level.APPLICATIONERROR, "Error during the undeployment of the command", "The command is still deployed",
             "Component is still in the server", "Check the exception");
 
@@ -155,11 +157,10 @@ public class BonitaCommandDeployment {
     /* ******************************************************************************** */
     public static class DeployStatus {
 
-        public List<BEvent> listEvents = new ArrayList<BEvent>();;
+        public List<BEvent> listEvents = new ArrayList<>();
         public boolean newDeployment = false;
         public boolean alreadyDeployed = true;
-        public StringBuilder message = new StringBuilder();
-
+        
         /**
          * main signature of the jar file
          */
@@ -168,6 +169,42 @@ public class BonitaCommandDeployment {
         public CommandDescriptor commandDescriptor;
         // if a command exist, the signatudeCommand is returned
         public String signatureCommand;
+        
+        private Long threadId;
+        private String commandName;
+        protected DeployStatus(Long threadId, String commandName) {
+            this.threadId = threadId;
+            this.commandName = commandName;
+        }
+        
+        /**
+         * Merge
+         */
+        public void merge(DeployStatus deployStatusToMerge) {
+           this.listEvents.addAll(deployStatusToMerge.listEvents);
+           // don't change newDeployment and alreadyDeployed
+           this.infoMessage.append( deployStatusToMerge.infoMessage );
+           this.errorMessage.append(deployStatusToMerge.errorMessage );     
+        }
+        /**
+         * Message management
+         */
+        private StringBuilder infoMessage = new StringBuilder();
+        private StringBuilder errorMessage = new StringBuilder();
+        public void addInfoMessage(String msg ) {
+            infoMessage.append( msg );
+        }
+        public void addErrorMessage(String msg ) {
+            infoMessage.append( msg );
+            errorMessage.append( msg );
+        }
+        public void logNow() {
+            if (isFine(logger))
+                logger.fine(logHeader + " >>>>>>>>>>>>>>>>>>> #" + (threadId == null ? "" : threadId) + " cmd[" + commandName + "] " + infoMessage.toString());
+            if (! errorMessage.toString().isEmpty())
+                logger.severe(logHeader + " >>>>>>>>>>>>>>>>>>> #" + (threadId == null ? "" : threadId) + " cmd[" + commandName + "] " + errorMessage.toString());
+        }
+        
     }
 
     /**
@@ -182,7 +219,6 @@ public class BonitaCommandDeployment {
      * @return
      */
     public DeployStatus checkAndDeployCommand(BonitaCommandDescription commandDescription, boolean logDeepDeployment, long tenantId, CommandAPI commandAPI, PlatformAPI platFormAPI) {
-        String message = "";
         Long threadId = null;
         if (logDeepDeployment) {
             synchronized (myCounter) {
@@ -194,31 +230,31 @@ public class BonitaCommandDeployment {
          * force the same name
          */
         DeployStatus deployStatus = checkDeployment(commandDescription, threadId, commandAPI);
-        logDeploy(threadId, deployStatus.message.toString());
 
-        if (deployStatus.alreadyDeployed)
+        if (deployStatus.alreadyDeployed) {
+            deployStatus.logNow();;
             return deployStatus;
-
-        message += deployStatus.message + "Deployment required;";
+        }
+        deployStatus.addInfoMessage("Deployment required;" );
 
         // at this step, we want to deploy the command. 
 
         // so no need to have a force deploy here.
-        deployStatus = deployCommand(false, commandDescription, tenantId, threadId, commandAPI, platFormAPI);
-
-        message += deployStatus.message + "Deployed ?[" + deployStatus.newDeployment + "], Success?["
-                + BEventFactory.isError(deployStatus.listEvents) + "]";
+        DeployStatus deployStatusResult = deployCommand(false, commandDescription, tenantId, threadId, commandAPI, platFormAPI);
+        deployStatus.merge( deployStatusResult );
+        deployStatus.addInfoMessage( "Deployed ?[" + deployStatus.newDeployment + "], Success?["
+                + BEventFactory.isError(deployStatus.listEvents) + "]");
 
         // ping the factory
         if (!BEventFactory.isError(deployStatus.listEvents)) {
             Map<String, Object> resultPing = afterDeployment(tenantId, commandAPI);
             if (!"OK".equals(resultPing.get("status"))) {
-                message += "Ping : [Error]";
-                deployStatus.listEvents.add(EVENT_PING_ERROR);
+                deployStatus.addErrorMessage( "Ping : [Error]" );
+                deployStatus.listEvents.add(eventPingError);
             }
 
         }
-        logDeploy(threadId, message);
+        deployStatus.logNow();;
 
         return deployStatus;
     }
@@ -234,7 +270,9 @@ public class BonitaCommandDeployment {
                 threadId = myCounter.counter;
             }
         }
-        return deployCommand(true, commandDescription, tenantId, threadId, commandAPI, platFormAPI);
+        DeployStatus deployStatus= deployCommand(true, commandDescription, tenantId, threadId, commandAPI, platFormAPI);
+        deployStatus.logNow();
+        return deployStatus;
     }
 
     public DeployStatus undeployCommand(BonitaCommandDescription commandDescription, boolean logDeepDeployment, long tenantId, CommandAPI commandAPI, PlatformAPI platFormAPI) {
@@ -252,16 +290,16 @@ public class BonitaCommandDeployment {
 
             // so undeploy it
             if (deployStatus.commandDescriptor != null) {
-                deployStatus.message.append(logDeploy(threadId, "Unregister Command[" + deployStatus.commandDescriptor.getId() + "] Signature[" + deployStatus.signatureCommand + "]"));
+                deployStatus.addInfoMessage("Unregister Command[" + deployStatus.commandDescriptor.getId() + "] Signature[" + deployStatus.signatureCommand + "]");
                 commandAPI.unregister(deployStatus.commandDescriptor.getId());
 
                 // remove only one dependency, the one associate to the command. Another dependency may be use by different command, we don't knows
                 commandAPI.removeDependency(commandDescription.commandName);
 
-                deployStatus.message.append(logDeploy(threadId, "Unregister Done"));
+                deployStatus.addInfoMessage( "Unregister Done");
             }
         } catch (CommandNotFoundException | DeletionException | DependencyNotFoundException e) {
-            deployStatus.message.append(logDeploy(threadId, "ERROR DEPLOIEMENT: CommandNotFoundException[" + e.getMessage() + "]  in " + (System.currentTimeMillis() - startTime) + " ms"));
+            deployStatus.addErrorMessage("ERROR DEPLOIEMENT: CommandNotFoundException[" + e.getMessage() + "]  in " + (System.currentTimeMillis() - startTime) + " ms");
             deployStatus.listEvents.add(new BEvent(eventErrorAtUndeployment, e,
                     "Command[" + commandName + "SignatureJar[" + deployStatus.signatureJar + "]"));
         }
@@ -298,7 +336,7 @@ public class BonitaCommandDeployment {
         if (command == null) {
             if (isFine(logger))
                 logger.fine(logHeader + "~~~~~~~~~~ callCommand() No Command[" + commandName + "] deployed");
-            listEvents.add(EVENT_NOT_DEPLOYED);
+            listEvents.add(eventNotDeployed);
             resultCommandHashmap.put(BonitaCommand.CST_RESULT_LISTEVENTS, BEventFactory.getHtml(listEvents));
             return resultCommandHashmap;
         }
@@ -324,7 +362,7 @@ public class BonitaCommandDeployment {
 
             logger.severe(logHeader + "~~~~~~~~~~  : ERROR Command[" + command.getId() + "] Verb["
                     + verb + "] " + e + " at " + exceptionDetails);
-            listEvents.add(new BEvent(EVENT_CALL_COMMAND, e, ""));
+            listEvents.add(new BEvent(eventCallCommand, e, ""));
         }
         if (!listEvents.isEmpty())
             resultCommandHashmap.put(BonitaCommand.CST_RESULT_LISTEVENTS, BEventFactory.getHtml(listEvents));
@@ -350,7 +388,7 @@ public class BonitaCommandDeployment {
         if (command == null) {
             if (isFine(logger))
                 logger.fine(logHeader + "~~~~~~~~~~ callCommand() No Command[" + commandName + "] deployed");
-            listEvents.add(EVENT_NOT_DEPLOYED);
+            listEvents.add(eventNotDeployed);
             resultCommandHashmap.put(BonitaCommand.CST_RESULT_LISTEVENTS, BEventFactory.getHtml(listEvents));
             return resultCommandHashmap;
         }
@@ -370,7 +408,7 @@ public class BonitaCommandDeployment {
             String exceptionDetails = sw.toString();
 
             logger.severe(logHeader + "~~~~~~~~~~  : ERROR Command[" + command.getId() + "] " + e + " at " + exceptionDetails);
-            listEvents.add(new BEvent(EVENT_CALL_COMMAND, e, ""));
+            listEvents.add(new BEvent(eventCallCommand, e, ""));
         }
         if (!listEvents.isEmpty())
             resultCommandHashmap.put(BonitaCommand.CST_RESULT_LISTEVENTS, BEventFactory.getHtml(listEvents));
@@ -409,17 +447,17 @@ public class BonitaCommandDeployment {
             deployStatus = checkDeployment(commandDescription, threadId, commandAPI);
             if (!forceDeploy && deployStatus.alreadyDeployed) {
                 // it was deployed just now by a previous thread
-                deployStatus.message.append(logDeploy(threadId, "Command Just deployed before;"));
+                deployStatus.addInfoMessage( "Command Just deployed before;");
 
                 return deployStatus;
             }
 
             // so deploy / redeploy it
             if (deployStatus.commandDescriptor != null) {
-                deployStatus.message.append(logDeploy(threadId, "Unregister Command[" + deployStatus.commandDescriptor.getId() + "] Signature[" + deployStatus.signatureCommand + "]"));
+                deployStatus.addInfoMessage( "Unregister Command[" + deployStatus.commandDescriptor.getId() + "] Signature[" + deployStatus.signatureCommand + "]");
 
                 commandAPI.unregister(deployStatus.commandDescriptor.getId());
-                deployStatus.message.append(logDeploy(threadId, "Unregister Done"));
+                deployStatus.addInfoMessage("Unregister Done");
             }
 
             // deploy now
@@ -430,7 +468,7 @@ public class BonitaCommandDeployment {
                 platFormAPI.stopNode();
             }
 
-            deployStatus.message.append(logDeploy(threadId, "DEPLOIMENT Signaturejar[" + deployStatus.signatureJar + "]"));
+            deployStatus.addInfoMessage( "DEPLOIMENT Signaturejar[" + deployStatus.signatureJar + "]");
             // there are a "lastVersionCheck" in dependencies ? 
             Set<String> lastVersionsCheck = new HashSet<>();
             for (final CommandJarDependency jarDependency : commandDescription.getListDependenciesToDeploy()) {
@@ -446,7 +484,7 @@ public class BonitaCommandDeployment {
             for (final CommandJarDependency jarDependency : commandDescription.getListDependenciesToDeploy()) {
                 boolean deployDependencyOk = true;
                 long startTimeDependency = System.currentTimeMillis();
-                deployStatus.message.append(logDeploy(threadId, "Manage Dependency[" + jarDependency.getName() + "]"));
+                deployStatus.addInfoMessage( "Manage Dependency[" + jarDependency.getName() + "]");
 
                 if ((!jarDependency.isForceDeploy()) && jarDependency.isLastVersionCheck()) {
                     // check if the version is the last one or not. By default, we have to deploy
@@ -458,7 +496,7 @@ public class BonitaCommandDeployment {
                             if (existingDependencie.lastIndexOf("-") != -1)
                                 existingVersion = existingDependencie.substring(existingDependencie.lastIndexOf("-") + 1);
                             boolean isUpper = isUpperVersion(jarDependency.getVersion(), existingVersion);
-                            deployStatus.message.append("Version[" + jarDependency.getVersion() + "] <-> existing[" + existingVersion + "] " + (isUpper ? "NEW" : "Lower") + ";");
+                            deployStatus.addInfoMessage("Version[" + jarDependency.getVersion() + "] <-> existing[" + existingVersion + "] " + (isUpper ? "NEW" : "Lower"));
                             if (!isUpper)
                                 deployNewDependency = false; // we found a better version, no deployment at all
                             if (isUpper) {
@@ -467,20 +505,21 @@ public class BonitaCommandDeployment {
 
                                 try {
                                     commandAPI.removeDependency(existingDependencie);
+                                    deployStatus.addInfoMessage("RemoveDependencie[" + jarDependency.getName() + "] in " + (System.currentTimeMillis() - startRemoveDependency) + " ms");
                                 } catch (DependencyNotFoundException nf) {
+                                    deployStatus.addInfoMessage("RemoveDependencieNotFound[" + jarDependency.getName() + "] in " + (System.currentTimeMillis() - startRemoveDependency) + " ms");
                                 } catch (Exception e) {
-                                    deployStatus.message.append(logDeploy(threadId, "ErrorRemoveDependency"));
+                                    deployStatus.addErrorMessage("ErrorRemoveDependency "+e.getMessage());
                                 }
-                                deployStatus.message.append(logDeploy(threadId, "RemoveDependencie[" + jarDependency.getName() + "] in " + (System.currentTimeMillis() - startRemoveDependency) + " ms"));
                             }
                         }
                     }
 
                     if (!deployNewDependency) {
-                        deployStatus.message.append("Keep Existing;");
+                        deployStatus.addInfoMessage("Keep Existing;");
                         continue;
                     }
-                    deployStatus.message.append("DEPLOY;");
+                    deployStatus.addInfoMessage("DEPLOY;");
                 } else {
                     long startRemoveDependency = System.currentTimeMillis();
                     try {
@@ -496,17 +535,17 @@ public class BonitaCommandDeployment {
                         // then remove all dependency started by the same name
                         for (String existingDependencie : dependenciesLastVersionCheck) {
                             if (existingDependencie.startsWith(jarDependency.getName())) {
-                                deployStatus.message.append("purge[" + existingDependencie + "]");
+                                deployStatus.addInfoMessage("purge[" + existingDependencie + "]");
                                 try {
                                     commandAPI.removeDependency(existingDependencie);
                                 } catch (DependencyNotFoundException nf) {
                                 }
                             }
                         }
+                        deployStatus.addInfoMessage( "RemoveDependencie[" + jarDependency.getName() + "] in " + (System.currentTimeMillis() - startRemoveDependency) + " ms");
                     } catch (Exception e) {
-                        deployStatus.message.append(logDeploy(threadId, "ErrorRemoveDependency"));
+                        deployStatus.addErrorMessage("ErrorRemoveDependency "+e.getMessage());
                     }
-                    deployStatus.message.append(logDeploy(threadId, "RemoveDependencie[" + jarDependency.getName() + "] in " + (System.currentTimeMillis() - startRemoveDependency) + " ms"));
                 }
 
                 String nameDependencyToDeploy;
@@ -528,10 +567,8 @@ public class BonitaCommandDeployment {
                     }
 
                 } catch (final Exception e) {
-                    String msg = logDeploy(threadId, "FileErrorLoadDependency: [" + e.getMessage() + "]");
-                    logger.severe(msg);
-                    deployStatus.message.append(msg);
-                    deployStatus.listEvents.add(new BEvent(EVENT_MISSING_DEPENDENCY, "Dependency[" + jarDependency.getName() + "] File[" + jarDependency.getCompleteFileName() + "]"));
+                    deployStatus.addErrorMessage("**** ERROR *** FileErrorLoadDependency: [" + e.getMessage() + "]");
+                    deployStatus.listEvents.add(new BEvent(eventMissingDependency, "Dependency[" + jarDependency.getName() + "] File[" + jarDependency.getCompleteFileName() + "]"));
                     deployDependencyOk = false;
                 } finally {
                     if (inputFileJar != null)
@@ -543,10 +580,11 @@ public class BonitaCommandDeployment {
                     try {
                         commandAPI.addDependency(nameDependencyToDeploy, fileContent.toByteArray());
                         long currentTime = System.currentTimeMillis();
-                        deployStatus.message.append(logDeploy(threadId, "Add[" + jarDependency.getName() + "] Name[" + nameDependencyToDeploy + "] in " + (currentTime - startAddDependency) + ", total " + (currentTime - startTimeDependency) + " ms"));
+                        deployStatus.addInfoMessage("Add[" + jarDependency.getName() + "] Name[" + nameDependencyToDeploy + "] in " + (currentTime - startAddDependency) + ", total " + (currentTime - startTimeDependency) + " ms");
                     } catch (AlreadyExistsException ae) {
-                        deployStatus.message.append(logDeploy(threadId, "AlreadyExist" + jarDependency.getName() + "]  in " + (System.currentTimeMillis() - startTimeDependency) + " ms"));
-                        deployStatus.listEvents.add(new BEvent(EVENT_DEPLOY_DEPENDENCY, "Dependency[" + jarDependency.getName() + "] Name[" + nameDependencyToDeploy + "] File[" + jarDependency.getCompleteFileName() + "]"));
+                        deployStatus.addErrorMessage("**** ERROR *** AlreadyExist: [" + jarDependency.getName() + "]  in " + (System.currentTimeMillis() - startTimeDependency) + " ms");
+                  
+                        deployStatus.listEvents.add(new BEvent(eventDeployDependency, "Dependency[" + jarDependency.getName() + "] Name[" + nameDependencyToDeploy + "] File[" + jarDependency.getCompleteFileName() + "]"));
                     }
 
                 }
@@ -554,27 +592,28 @@ public class BonitaCommandDeployment {
 
             // --- register command
             if (!BEventFactory.isError(deployStatus.listEvents)) {
-                deployStatus.message.append(logDeploy(threadId, "Registering Command..."));
+                deployStatus.addInfoMessage(logDeploy(threadId, "Registering Command..."));
 
                 long startRegisterCommand = System.currentTimeMillis();
                 deployStatus.commandDescriptor = commandAPI.register(commandName,
                         deployStatus.signatureJar + "#" + commandDescription.commandDescription, commandDescription.mainCommandClassName);
                 long currentTime = System.currentTimeMillis();
-                deployStatus.listEvents.add(new BEvent(eventDeployedWithSuccess, deployStatus.message.toString()));
+                deployStatus.listEvents.add(new BEvent(eventDeployedWithSuccess, deployStatus.infoMessage.toString()));
                 deployStatus.newDeployment = true;
-                deployStatus.message.append(logDeploy(threadId, "Register Command in " + (currentTime - startRegisterCommand) + " ms, Total Deployement in " + (System.currentTimeMillis() - startTime) + " ms"));
+                deployStatus.addInfoMessage( "Register Command in " + (currentTime - startRegisterCommand) + " ms, Total Deployement in " + (System.currentTimeMillis() - startTime) + " ms");
             }
 
             if (platFormAPI != null) {
                 platFormAPI.startNode();
             }
             // let log as INFO all the deployment
-            logger.info(deployStatus.message.toString());
+           
             return deployStatus;
 
         } catch (Exception e) {
-            deployStatus.message.append(logDeploy(threadId, "ERROR DEPLOIEMENT: CommandNotFoundException[" + e.getMessage() + "]  in " + (System.currentTimeMillis() - startTime) + " ms"));
-            deployStatus.listEvents.add(new BEvent(EVENT_ERROR_AT_DEPLOYEMENT, e,
+            deployStatus.addErrorMessage( "ERROR DEPLOIEMENT: CommandNotFoundException[" + e.getMessage() + "]  in " + (System.currentTimeMillis() - startTime) + " ms");
+
+            deployStatus.listEvents.add(new BEvent(eventErrorAtDeployment, e,
                     "Command[" + commandName + "SignatureJar[" + deployStatus.signatureJar + "]"));
         }
         return deployStatus;
@@ -612,7 +651,7 @@ public class BonitaCommandDeployment {
      * @return
      */
     private DeployStatus checkDeployment(BonitaCommandDescription commandDescription, Long threadId, CommandAPI commandAPI) {
-        DeployStatus deployStatus = new DeployStatus();
+        DeployStatus deployStatus = new DeployStatus( threadId, commandDescription.commandName);
         deployStatus.alreadyDeployed = true;
 
         deployStatus.commandDescriptor = getCommand(commandAPI);
@@ -635,7 +674,7 @@ public class BonitaCommandDeployment {
         if (deployStatus.alreadyDeployed) {
 
             deployStatus.signatureCommand = getSignature(deployStatus.commandDescriptor);
-            deployStatus.message.append("CommandFile[" + fileJar.getAbsolutePath() + "],SignatureJar[" + deployStatus.signatureJar + "] signatureCommand[" + deployStatus.signatureCommand + "];");
+            deployStatus.addInfoMessage("CommandFile[" + fileJar.getAbsolutePath() + "],SignatureJar[" + deployStatus.signatureJar + "] signatureCommand[" + deployStatus.signatureCommand + "];");
             deployStatus.alreadyDeployed = deployStatus.signatureJar.equals(deployStatus.signatureCommand);
         }
 
@@ -739,6 +778,10 @@ public class BonitaCommandDeployment {
             logger.fine(logHeader + " >>>>>>>>>>>>>>>>>>> #" + (threadId == null ? "" : threadId) + " cmd[" + commandName + "] " + message);
         return message + ";";
     }
+    private String logDeployError(Long threadId, String message) {
+            logger.severe(logHeader + " >>>>>>>>>>>>>>>>>>> #" + (threadId == null ? "" : threadId) + " cmd[" + commandName + "] " + message);
+        return message + ";";
+    }
 
     /**
      * check two versions. return true is newVersion is UPPER than existing version
@@ -800,7 +843,7 @@ public class BonitaCommandDeployment {
         Connection con = null;
         PreparedStatement pstmt = null;
         ResultSet rs = null;
-        Set<String> listResults = new HashSet<String>();
+        Set<String> listResults = new HashSet<>();
         try {
             final DataSource dataSource = getDataSourceConnection();
             if (dataSource == null)
@@ -810,7 +853,7 @@ public class BonitaCommandDeployment {
             if (con == null)
                 throw new Exception("No connection available");
 
-            final List<Object> listSqlParameters = new ArrayList<Object>();
+            final List<Object> listSqlParameters = new ArrayList<>();
             String sqlRequest = "";
             for (String name : names) {
                 if (sqlRequest.length() > 0)
