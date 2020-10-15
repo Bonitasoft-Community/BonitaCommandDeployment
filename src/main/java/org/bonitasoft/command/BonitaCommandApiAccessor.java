@@ -193,9 +193,9 @@ public abstract class BonitaCommandApiAccessor extends BonitaCommand {
     }
 
    
-    private ExecuteAnswer returnOkAnswer() {
+    public  ExecuteAnswer returnOkAnswer() {
         ExecuteAnswer executeAnswer = new ExecuteAnswer();
-        executeAnswer.result.put(CSTANSWER_STATUS, "OK");
+        executeAnswer.result.put(CSTANSWER_STATUS, CSTANSWER_STATUS_V_OK);
         return executeAnswer;
     }
 }

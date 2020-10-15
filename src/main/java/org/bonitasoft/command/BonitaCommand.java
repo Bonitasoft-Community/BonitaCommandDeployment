@@ -59,6 +59,7 @@ public abstract class BonitaCommand extends TenantCommand {
     private static String logHeader = "BonitaCommand ~~~";
 
     public final static String CSTANSWER_STATUS = "status";
+    public final static String CSTANSWER_STATUS_V_OK = "OK";
 
     private final static BEvent eventInternalError = new BEvent(BonitaCommand.class.getName(), 1, Level.ERROR,
             "Internal error", "Internal error, check the log");
