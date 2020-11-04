@@ -336,7 +336,7 @@ public class BonitaCommandDeployment {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> callCommand(String verb, HashMap<String, Serializable> parametersCommand, long tenantId, CommandAPI commandAPI) {
-        List<BEvent> listEvents = new ArrayList<BEvent>();
+        List<BEvent> listEvents = new ArrayList<>();
         Map<String, Object> resultCommandHashmap = new HashMap<>();
 
         final CommandDescriptor command = getCommand(commandAPI);
