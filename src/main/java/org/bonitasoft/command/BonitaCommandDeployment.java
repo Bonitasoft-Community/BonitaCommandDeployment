@@ -57,7 +57,7 @@ import org.bonitasoft.log.event.BEventFactory;
 public class BonitaCommandDeployment {
 
     public final static String NAME = "bonita-commanddeployment";
-    public final static String VERSION = "2.1.2";
+    public final static String VERSION = "2.1.3";
     public final static String JAR_NAME = "bonita-commanddeployment-" + VERSION + ".jar";
 
     static Logger logger = Logger.getLogger(BonitaCommandDeployment.class.getName());
@@ -103,7 +103,7 @@ public class BonitaCommandDeployment {
      * in order to not have at the same time two deployment for the same command, we have to protect
      * it. So, let's create one object per commandName
      */
-    private static Map<String, BonitaCommandDeployment> allDeploymentCommand = new HashMap<String, BonitaCommandDeployment>();
+    private static Map<String, BonitaCommandDeployment> allDeploymentCommand = new HashMap<>();
 
     /**
      * return an instance. Seach in the local cache, based on the command name.
@@ -186,6 +186,7 @@ public class BonitaCommandDeployment {
         public void merge(DeployStatus deployStatusToMerge) {
             this.listEvents.addAll(deployStatusToMerge.listEvents);
             // don't change newDeployment and alreadyDeployed
+            this.newDeployment = deployStatusToMerge.newDeployment;
             this.infoMessage.append(deployStatusToMerge.infoMessage);
             this.errorMessage.append(deployStatusToMerge.errorMessage);
         }
